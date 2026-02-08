@@ -1,0 +1,25 @@
+# build artifacts
+build/
+*.o
+*.a
+*.so
+*.out
+
+# eBPF artifacts
+*.bpf.o
+*.skel.h
+ebpf/vmlinux.h
+
+# logs
+logs/
+*.log
+*.jsonl
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# editor
+.vscode/
+.DS_Store
