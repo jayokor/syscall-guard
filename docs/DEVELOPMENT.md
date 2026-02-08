@@ -49,143 +49,132 @@ ebpf/vmlinux.h is machine-generated and should be gitignored.
 
 build/ should be gitignored.
 
-Development Workflow (recommended)
+## Development Workflow (recommended)
 1) Generate vmlinux.h (once per machine)
+```bash
 sudo bpftool btf dump file /sys/kernel/btf/vmlinux format c > ebpf/vmlinux.h
-2) Build
+```
+3) Build
+```bash
 make
-3) Run (requires root)
+```
+5) Run (requires root)
+```bash
 sudo ./build/syscall-guard --pid <PID>
+```
 
 (Exact flags will be documented as the CLI stabilizes.)
 
-How SyscallGuard Works (high level)
+## How SyscallGuard Works (high level)
 
 Two components:
 
-eBPF program (kernel space)
+1. eBPF program (kernel space)
+* hooks syscall entry/exit tracepoints
+* captures syscall id + selected arguments
+* pushes events to user space (ring buffer / perf buffer)
 
-hooks syscall entry/exit tracepoints
+2. User-space controller
+* loads eBPF program via libbpf
+* reads events
+* applies detection:
+  * rule-based (policy violations)
+  * baseline-based (deviation from learned behavior)
+* prints + logs alerts (JSON)
 
-captures syscall id + selected arguments
-
-pushes events to user space (ring buffer / perf buffer)
-
-User-space controller
-
-loads eBPF program via libbpf
-
-reads events
-
-applies detection:
-
-rule-based (policy violations)
-
-baseline-based (deviation from learned behavior)
-
-prints + logs alerts (JSON)
-
-Demos / Test Programs
+## Demos / Test Programs
 
 Example programs in examples/ are used to produce predictable syscall patterns.
 
 Build examples (future placeholder):
-
+```bash
 make examples
-
+```
 Run examples:
-
+```bash
 ./build/examples/normal_io
 ./build/examples/net_connect
 ./build/examples/spawn_proc
-Baseline Training Mode
+```
+
+## Baseline Training Mode
 
 Goal:
-
-learn a program’s “normal” syscall profile
-
-compare runtime behavior to baseline
+* learn a program’s “normal” syscall profile
+* compare runtime behavior to baseline
 
 Workflow (planned):
-
-Train baseline:
-
+1. Train baseline:
+```bash
 sudo ./build/syscall-guard train --cmd "./build/examples/normal_io" --out baseline.json
+```
 
-Monitor with baseline:
-
+2. Monitor with baseline:
+```bash
 sudo ./build/syscall-guard monitor --cmd "./build/examples/normal_io" --baseline baseline.json
-Logging Format (planned)
+```
+
+## Logging Format (planned)
 
 All events/alerts should support JSONL output for analysis:
-
-logs/events.jsonl
-
-logs/alerts.jsonl
+* logs/events.jsonl
+* logs/alerts.jsonl
 
 Example alert fields:
+* timestamp
+* pid / comm
+*syscall_name
+* reason (policy / baseline deviation)
+* severity score
 
-timestamp
-
-pid / comm
-
-syscall_name
-
-reason (policy / baseline deviation)
-
-severity score
-
-Performance Testing (planned)
+## Performance Testing (planned)
 
 We will measure overhead under different settings:
-
-trace all syscalls vs select syscalls
-
-rule-only vs rule+baseline
-
-argument capture on/off (high cost)
+* trace all syscalls vs select syscalls
+* rule-only vs rule+baseline
+* argument capture on/off (high cost)
 
 Measurement tools:
-
-time
-
-perf stat
-
-CPU/memory sampling
+* time
+* perf stat
+* CPU/memory sampling
 
 Example (placeholder):
-
+```bash
 /usr/bin/time -v sudo ./build/syscall-guard monitor --cmd "./build/examples/normal_io"
 perf stat -d sudo ./build/syscall-guard monitor --cmd "./build/examples/normal_io"
-Useful Debug Commands
+```
+
+## Useful Debug Commands
 
 Show loaded BPF programs:
-
+```bash
 sudo bpftool prog show
-
+```
 Show maps:
-
+```bash
 sudo bpftool map show
-
+```
 Kernel trace logs:
-
+```bash
 sudo dmesg -w
-
+```
 (If using bpf_printk / debug traces, this helps.)
 
-Common Pitfalls
+## Common Pitfalls
 vmlinux.h missing
-
 You must generate it:
-
+```bash
 sudo bpftool btf dump file /sys/kernel/btf/vmlinux format c > ebpf/vmlinux.h
+```
+
 kernel-devel mismatch
-
 Install headers for the running kernel:
-
+```bash
 sudo dnf install -y kernel-devel-$(uname -r) kernel-headers-$(uname -r)
+```
+
 permissions
-
 Loading eBPF usually requires root:
+* run with sudo
 
-run with sudo
